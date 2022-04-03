@@ -11,6 +11,7 @@ import random
 from event import *
 from cal_best_cs import *
 from Queue1 import *
+from make_json import *
 
 from static_algo.EV_Equilibrium_only_equal import EvEquilibrium
 from static_algo.config_exp import config
@@ -20,10 +21,10 @@ evEquilibrium = EvEquilibrium()
 import math
 
 charging_required_time = 20
-time_slices = 520
-charging_rate = 0.5
+time_slices = 9000
+charging_rate = 0.07
 per_step_time = 5
-time_interval = 250
+time_interval = 300
 part_road = [[] for i in range(6)]
 
 
@@ -40,9 +41,9 @@ def get_part_road():
 
 
 def simulations(price_interval):
-    f = open("../flow.txt")
-    w = open("../new_flow.txt", "w+")
-    print("[", file=w)
+    f = open("../new_flow.txt")
+    j = open("../cityflow_simu/shushan/new_flow.json", 'w+')
+    print("[", file=j)
     line = f.readline()
     price = smooth.smooth_algo_noV(config.region_num, config.cs_num, True)
     # 赶路事件
@@ -53,7 +54,7 @@ def simulations(price_interval):
     cs_inqueue = [0 for i in range(config.cs_num)]
     # 剩余充电容量
     cs_capacity = config.cs_cap
-    car_speed = 15
+    car_speed = 0.1
     revenue = [0 for i in range(config.cs_num)]
     revenue_cs = [[0 for i in range(config.cs_num)] for j in range(int(time_slices / per_step_time))]
     price_time = []
@@ -111,7 +112,8 @@ def simulations(price_interval):
             if flow_time <= t:
                 rand = random.random()
                 if rand > charging_rate:
-                    print(line, file=w)
+                    if rand > 0.5:
+                        print(line, file=j)
                     line = f.readline()
                     line = line.strip("\n")
                     continue
@@ -145,7 +147,7 @@ def simulations(price_interval):
                 # 路径更改，输出到新的json文件中
                 new_route = change_route(line, best_cs, start_pos, end_pos)
                 print("new_route: " + new_route)
-                print(new_route, file=w)
+                print(new_route, file=j)
                 line = f.readline()
                 line = line.strip("\n")
             else:
@@ -160,11 +162,11 @@ def simulations(price_interval):
             price = smooth.smooth_algo_V(config.region_num, config.cs_num, vehicle_num_last_interval)
             vehicle_num_last_interval = [0 for i in range(config.region_num)]
             price_time.append(price)
-    print("]", file=w)
+    print("]", file=j)
     print(revenue_cs)
     print(revenue)
     print(price_time)
-    return revenue, revenue_cs, revenue_predict_time
+    return revenue, revenue_cs, price_time
 
 
 def change_route(line, best_cs, start_road, end_road):
@@ -193,11 +195,13 @@ def get_flow_time(line):
 
 def evcs_dynamic(region_num=4, cs_num=2):
     config.change_region_cs_num(region_num=region_num, cs_num=cs_num)
-    revenue, revenue_cs, revenue_predict = simulations(time_interval)
+    revenue, revenue_cs, price_time = simulations(time_interval)
+    make_price_json(price_time)
+    make_revenue_json(revenue_cs)
     return {
         "revenue": revenue,
         "revenue_cs": revenue_cs,
-        "revenue_predict": revenue_predict
+        "price_time": price_time
     }
 
 
